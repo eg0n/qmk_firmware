@@ -285,6 +285,8 @@ static void InvertCharacter(uint8_t *cursor) {
     }
 }
 
+static void oled_render_blocks(bool all);
+
 bool oled_init(oled_rotation_t rotation) {
 #if defined(USE_I2C) && defined(SPLIT_KEYBOARD) && defined(OLED_TRANSPORT_I2C)
     if (!is_keyboard_master()) {
@@ -345,7 +347,7 @@ bool oled_init(oled_rotation_t rotation) {
         }
     }
 
-    static const uint8_t PROGMEM display_setup2[] = {I2C_CMD, COM_PINS, OLED_COM_PINS, CONTRAST, OLED_BRIGHTNESS, PRE_CHARGE_PERIOD, OLED_PRE_CHARGE_PERIOD, VCOM_DETECT, OLED_VCOM_DETECT, DISPLAY_ALL_ON_RESUME, NORMAL_DISPLAY, DEACTIVATE_SCROLL, DISPLAY_ON};
+    static const uint8_t PROGMEM display_setup2[] = {I2C_CMD, COM_PINS, OLED_COM_PINS, CONTRAST, OLED_BRIGHTNESS, PRE_CHARGE_PERIOD, OLED_PRE_CHARGE_PERIOD, VCOM_DETECT, OLED_VCOM_DETECT, DISPLAY_ALL_ON_RESUME, NORMAL_DISPLAY, DEACTIVATE_SCROLL};
     if (!oled_send_cmd_P(display_setup2, ARRAY_SIZE(display_setup2))) {
         print("display_setup2 failed\n");
         return false;
@@ -358,7 +360,16 @@ bool oled_init(oled_rotation_t rotation) {
     oled_scroll_timeout = timer_read32() + OLED_SCROLL_TIMEOUT;
 #endif
 
+    // The panel's memory holds noise from power-up, so it is cleared before the panel is shown,
+    // rather than a block at a time once it is on.
     oled_clear();
+    oled_render_blocks(true);
+    static const uint8_t PROGMEM display_on[] = {I2C_CMD, DISPLAY_ON};
+    if (!oled_send_cmd_P(display_on, ARRAY_SIZE(display_on))) {
+        print("display_on failed\n");
+        return false;
+    }
+
     oled_initialized = true;
     oled_active      = true;
     oled_scrolling   = false;
@@ -451,6 +462,13 @@ void oled_render_dirty(bool all) {
 
     // Turn on display if it is off
     oled_on();
+
+    oled_render_blocks(all);
+}
+
+// Sends the dirty blocks to the display, up to OLED_UPDATE_PROCESS_LIMIT of them unless all.
+static void oled_render_blocks(bool all) {
+    oled_dirty &= OLED_ALL_BLOCKS_MASK;
 
     uint8_t update_start  = 0;
     uint8_t num_processed = 0;
