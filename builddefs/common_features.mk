@@ -77,6 +77,7 @@ ifeq ($(strip $(AUDIO_ENABLE)), yes)
     SRC += $(PLATFORM_PATH)/$(PLATFORM_KEY)/$(DRIVER_DIR)/audio_$(strip $(AUDIO_DRIVER)).c
     SRC += $(QUANTUM_DIR)/audio/voices.c
     SRC += $(QUANTUM_DIR)/audio/luts.c
+    SRC += $(QUANTUM_DIR)/audio/audio_clips.c
 endif
 
 ifeq ($(strip $(SEQUENCER_ENABLE)), yes)

@@ -196,6 +196,39 @@ These keycodes turn all of the audio functionality on and off.  Turning it off m
 |`DEFAULT_LAYER_SONGS`             | *Not defined*        |Plays song when switched default layers with [`set_single_persistent_default_layer(layer)`](../ref_functions#setting-the-persistent-default-layer)(quantum.c). |
 |`SENDSTRING_BELL`                 | *Not defined*        |Plays chime when the "enter" ("\a") character is sent (send_string.c)                        |
 
+## Audio Clips
+
+Audio clips are short tunes with two voices, a left one and a right one. On a split keyboard with a speaker in each half and `SPLIT_AUDIO_ENABLE` (see [Split Keyboard](split_keyboard#data-sync-options)), each half plays its own voice of a clip, in stereo. Both halves hold the same table of clips; the master only tells the slave which clip to play, and when, on the split sync timer, so the voices stay together. A half playing on its own, the only half or a master with no slave connected, plays the clip's `solo` voice.
+
+Notes are timed in ticks from the start of the clip, `AUDIO_CLIP_TICKS_PER_BEAT` (24 by default) to a beat at the clip's `tempo`, so a sixteenth note is 6 ticks, a thirty-second 3, a dotted sixteenth 9 and a sixteenth-note triplet 4. A pitch of `0` is a rest.
+
+```c
+static const audio_clip_note_t tune_left[] = {
+    AUDIO_CLIP_NOTE(_C5, 12), AUDIO_CLIP_NOTE(_G5, 12), AUDIO_CLIP_NOTE(_REST, 12), AUDIO_CLIP_NOTE(_C5, 12),
+};
+static const audio_clip_note_t tune_right[] = {
+    AUDIO_CLIP_NOTE(_E6, 6), AUDIO_CLIP_NOTE(_G6, 6), AUDIO_CLIP_NOTE(_C7, 36),
+};
+
+const audio_clip_t audio_clips[] = {
+    {.left = AUDIO_CLIP_VOICE(tune_left), .right = AUDIO_CLIP_VOICE(tune_right), .solo = AUDIO_CLIP_RIGHT, .tempo = 120},
+};
+const uint8_t audio_clips_count = ARRAY_SIZE(audio_clips);
+```
+
+Then call `audio_clip_play(0)` to play the first clip, and `audio_clip_stop()` to stop it. A song started with `PLAY_SONG` interrupts a clip's current note.
+
+| Define                      | Default | Description                                                                        |
+|-----------------------------|---------|------------------------------------------------------------------------------------|
+| `AUDIO_CLIP_TICKS_PER_BEAT` | `24`    | Ticks to a beat in the clips' notes                                                |
+| `AUDIO_CLIP_NOTE_GAP_MS`    | `12`    | Silence at the end of each note, so that repeated notes are heard apart            |
+| `AUDIO_CLIP_LEAD_MS`        | `50`    | How far ahead the master cues a clip, so the cue reaches the slave before it starts |
+| `AUDIO_CLIP_CONNECT_WAIT_MS` | `3000` | How long the master holds a clip back for the slave to take its cue, before playing it alone |
+
+The master plays its own voice only once the slave has the cue, cueing the clip again a little later each time it falls due first. This keeps the halves together when both have just been plugged in, while the slave is still working out that it is the slave. If the slave never answers, the master plays the solo voice after `AUDIO_CLIP_CONNECT_WAIT_MS`.
+
+Every note starts from silence, so drivers that only change the pitch of a playing note on a timer, such as `pwm_hardware` on ChibiOS, still start each note at the same moment on both halves. Clips are not stored in `PROGMEM`, so on AVR they take up RAM.
+
 ## Tempo
 the 'speed' at which SONGs are played is dictated by the set Tempo, which is measured in beats-per-minute. Note lengths are defined relative to that.
 The initial/default tempo is set to 120 bpm, but can be configured by setting `TEMPO_DEFAULT` in `config.c`.

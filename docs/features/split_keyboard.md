@@ -317,6 +317,12 @@ There is additional required configuration for `SPLIT_POINTING_ENABLE` outlined 
 This enables the triggering of haptic feedback on the slave side of the split keyboard. This will send information to the slave side such as the mode, dwell, and whether buzz is enabled.
 
 ```c
+#define SPLIT_AUDIO_ENABLE
+```
+
+This plays [audio clips](audio#audio-clips) in stereo, with each half playing its own voice, and has the slave follow the master's audio on/off state. It needs a speaker on both halves.
+
+```c
 #define SPLIT_ACTIVITY_ENABLE
 ```
 

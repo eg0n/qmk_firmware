@@ -99,6 +99,10 @@ enum serial_transaction_id {
     PUT_HAPTIC,
 #endif // defined(HAPTIC_ENABLE) && defined(SPLIT_HAPTIC_ENABLE)
 
+#if defined(AUDIO_ENABLE) && defined(SPLIT_AUDIO_ENABLE)
+    PUT_AUDIO,
+#endif // defined(AUDIO_ENABLE) && defined(SPLIT_AUDIO_ENABLE)
+
 #if defined(SPLIT_ACTIVITY_ENABLE)
     PUT_ACTIVITY,
 #endif // SPLIT_ACTIVITY_ENABLE

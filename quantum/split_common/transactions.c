@@ -854,6 +854,63 @@ static void haptic_handlers_slave(matrix_row_t master_matrix[], matrix_row_t sla
 
 #endif // defined(HAPTIC_ENABLE) && defined(SPLIT_HAPTIC_ENABLE)
 
+#if defined(AUDIO_ENABLE) && defined(SPLIT_AUDIO_ENABLE)
+
+#    include "audio.h"
+extern audio_config_t audio_config;
+
+static bool audio_handlers_master(matrix_row_t master_matrix[], matrix_row_t slave_matrix[]) {
+    static uint32_t          last_update = 0;
+    split_slave_audio_sync_t audio_sync;
+
+    audio_sync.cue    = audio_clip_cue;
+    audio_sync.enable = audio_is_on();
+
+    // A write that fails is retried on every pass, so success means the slave has this cue.
+    bool okay = send_if_data_mismatch(PUT_AUDIO, &last_update, &audio_sync, &split_shmem->audio_sync, sizeof(audio_sync));
+    if (okay) {
+        audio_clip_cue_delivered(audio_sync.cue.serial);
+    }
+    return okay;
+}
+
+static void audio_handlers_slave(matrix_row_t master_matrix[], matrix_row_t slave_matrix[]) {
+    static uint8_t           last_serial = 0;
+    split_slave_audio_sync_t audio_sync;
+
+    // Copied out whole, so that a cue is never half written, and played outside the lock.
+    split_shared_memory_lock();
+    memcpy(&audio_sync, &split_shmem->audio_sync, sizeof(audio_sync));
+    split_shared_memory_unlock();
+
+    // The slave follows the master's audio switch, without writing it to its own EEPROM.
+    if (audio_is_on() != audio_sync.enable) {
+        if (!audio_sync.enable) {
+            audio_stop_all();
+        }
+        audio_config.enable = audio_sync.enable;
+    }
+
+    if (audio_sync.cue.serial != last_serial) {
+        last_serial = audio_sync.cue.serial;
+        audio_clip_play_cue(&audio_sync.cue);
+    }
+}
+
+// clang-format off
+#    define TRANSACTIONS_AUDIO_MASTER() TRANSACTION_HANDLER_MASTER(audio)
+#    define TRANSACTIONS_AUDIO_SLAVE() TRANSACTION_HANDLER_SLAVE(audio)
+#    define TRANSACTIONS_AUDIO_REGISTRATIONS [PUT_AUDIO] = trans_initiator2target_initializer(audio_sync),
+// clang-format on
+
+#else // defined(AUDIO_ENABLE) && defined(SPLIT_AUDIO_ENABLE)
+
+#    define TRANSACTIONS_AUDIO_MASTER()
+#    define TRANSACTIONS_AUDIO_SLAVE()
+#    define TRANSACTIONS_AUDIO_REGISTRATIONS
+
+#endif // defined(AUDIO_ENABLE) && defined(SPLIT_AUDIO_ENABLE)
+
 #if defined(SPLIT_ACTIVITY_ENABLE)
 
 static bool activity_handlers_master(matrix_row_t master_matrix[], matrix_row_t slave_matrix[]) {
@@ -939,6 +996,7 @@ split_transaction_desc_t split_transaction_table[NUM_TOTAL_TRANSACTIONS] = {
     TRANSACTIONS_POINTING_REGISTRATIONS
     TRANSACTIONS_WATCHDOG_REGISTRATIONS
     TRANSACTIONS_HAPTIC_REGISTRATIONS
+    TRANSACTIONS_AUDIO_REGISTRATIONS
     TRANSACTIONS_ACTIVITY_REGISTRATIONS
     TRANSACTIONS_DETECTED_OS_REGISTRATIONS
 // clang-format on
@@ -969,6 +1027,7 @@ bool transactions_master(matrix_row_t master_matrix[], matrix_row_t slave_matrix
     TRANSACTIONS_POINTING_MASTER();
     TRANSACTIONS_WATCHDOG_MASTER();
     TRANSACTIONS_HAPTIC_MASTER();
+    TRANSACTIONS_AUDIO_MASTER();
     TRANSACTIONS_ACTIVITY_MASTER();
     TRANSACTIONS_DETECTED_OS_MASTER();
     return true;
@@ -992,6 +1051,7 @@ void transactions_slave(matrix_row_t master_matrix[], matrix_row_t slave_matrix[
     TRANSACTIONS_POINTING_SLAVE();
     TRANSACTIONS_WATCHDOG_SLAVE();
     TRANSACTIONS_HAPTIC_SLAVE();
+    TRANSACTIONS_AUDIO_SLAVE();
     TRANSACTIONS_ACTIVITY_SLAVE();
     TRANSACTIONS_DETECTED_OS_SLAVE();
 }

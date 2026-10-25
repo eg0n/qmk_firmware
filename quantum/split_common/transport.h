@@ -124,6 +124,14 @@ typedef struct _split_slave_haptic_sync_t {
 } split_slave_haptic_sync_t;
 #endif // defined(HAPTIC_ENABLE) && defined(SPLIT_HAPTIC_ENABLE)
 
+#if defined(AUDIO_ENABLE) && defined(SPLIT_AUDIO_ENABLE)
+#    include "audio_clips.h"
+typedef struct _split_slave_audio_sync_t {
+    audio_clip_cue_t cue;
+    bool             enable;
+} split_slave_audio_sync_t;
+#endif // defined(AUDIO_ENABLE) && defined(SPLIT_AUDIO_ENABLE)
+
 #if defined(SPLIT_ACTIVITY_ENABLE)
 #    include "keyboard.h"
 typedef struct _split_slave_activity_sync_t {
@@ -218,6 +226,10 @@ typedef struct _split_shared_memory_t {
 #if defined(HAPTIC_ENABLE) && defined(SPLIT_HAPTIC_ENABLE)
     split_slave_haptic_sync_t haptic_sync;
 #endif // defined(HAPTIC_ENABLE)
+
+#if defined(AUDIO_ENABLE) && defined(SPLIT_AUDIO_ENABLE)
+    split_slave_audio_sync_t audio_sync;
+#endif // defined(AUDIO_ENABLE) && defined(SPLIT_AUDIO_ENABLE)
 
 #if defined(SPLIT_ACTIVITY_ENABLE)
     split_slave_activity_sync_t activity_sync;

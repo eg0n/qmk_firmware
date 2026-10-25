@@ -38,6 +38,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #endif
 #ifdef AUDIO_ENABLE
 #    include "audio.h"
+#    include "audio_clips.h"
 #endif
 #if defined(AUDIO_ENABLE) || (defined(MIDI_ENABLE) && defined(MIDI_BASIC))
 #    include "process_music.h"
@@ -794,6 +795,11 @@ void keyboard_task(void) {
 
 #ifdef HAPTIC_ENABLE
     haptic_task();
+#endif
+
+#ifdef AUDIO_ENABLE
+    // On both halves, unlike audio_task, so that each plays its voice of a clip.
+    audio_clips_task();
 #endif
 
     led_task();
